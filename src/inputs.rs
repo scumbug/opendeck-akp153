@@ -21,21 +21,27 @@ fn read_button_states(states: &[u8]) -> Vec<bool> {
     bools
 }
 
-/// Converts opendeck key index to device key index
+/// Converts opendeck key index to device LCD id
+///
+/// LCD ids are 0-based here, mirajazz adds 1 to them when sending to the device.
+/// Device LCD ids are laid out as: row 0 = 0x0b-0x0f, row 1 = 0x06-0x0a, row 2 = 0x01-0x05
 pub fn opendeck_to_device(key: u8) -> u8 {
     if key < KEY_COUNT as u8 {
-        [12, 9, 6, 3, 0, 15, 13, 10, 7, 4, 1, 16, 14, 11, 8, 5, 2, 17][key as usize]
+        [10, 11, 12, 13, 14, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4][key as usize]
     } else {
         key
     }
 }
 
-/// Converts device key index to opendeck key index
-pub fn device_to_opendeck(key: usize) -> usize {
-    let key = key - 1; // We have to subtract 1 from key index reported by device, because list is shifted by 1
+/// Converts device button id to opendeck key index
+///
+/// Button ids 1..15 are laid out row-major, so the opendeck key is the id minus 1.
+pub fn device_to_opendeck(id: usize) -> usize {
+    // We have to subtract 1 from key index reported by device, because ids are 1-based
+    let key = id - 1;
 
     if key < KEY_COUNT {
-        [4, 10, 16, 3, 9, 15, 2, 8, 14, 1, 7, 13, 0, 6, 12, 5, 11, 17][key]
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14][key]
     } else {
         key
     }
@@ -53,8 +59,7 @@ fn read_button_press(input: u8, state: u8) -> Result<DeviceInput, MirajazzError>
 
     let pressed_index: usize = device_to_opendeck(input as usize);
 
-    // `device_to_opendeck` is 0-based, so add 1
-    // I'll probably have to refactor all of this off-by-one stuff in this file, but that's a future me problem
+    // `device_to_opendeck` is 0-based, so add 1 to index into the 1-based state list
     button_states[pressed_index + 1] = state;
 
     Ok(DeviceInput::ButtonStateChange(read_button_states(

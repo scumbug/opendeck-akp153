@@ -1,9 +1,9 @@
 {
-  "Name": "Ajazz AKP153 / Mirabox HSV293S",
-  "Description": "Device support plugin for Ajazz AKP153 (+variants)",
+  "Name": "Mirabox 293V3",
+  "Description": "Device support plugin for Mirabox 293V3",
   "Author": "Andrey Viktorov",
   "Version": "0.11.1",
-  "PluginUUID": "st.lynx.plugins.opendeck-akp153",
+  "PluginUUID": "4296d983-7e3c-4b6e-a76c-dc722e81a362",
   "CodePathLin": "opendeck-akp153-linux",
   "CodePathMac": "opendeck-akp153-mac",
   "CodePathWin": "opendeck-akp153-win.exe",
@@ -15,5 +15,5 @@
     { "Platform": "windows", "MinimumVersion": "10" }
   ],
   "Actions": [],
-  "DeviceNamespace": "99"
+  "DeviceNamespace": "29"
 }

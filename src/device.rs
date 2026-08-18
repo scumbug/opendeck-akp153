@@ -131,36 +131,61 @@ pub async fn connect(candidate: &CandidateDevice) -> Result<Device, MirajazzErro
     }
 }
 
-/// Flushes queued images after a 50ms quiet window following the last set_button_image call.
-/// Sleeps entirely when the device is idle — no polling.
+/// Flushes queued images after a 50ms quiet window and sends the CONNECT heartbeat every 8s.
+///
+/// This task owns all multi-packet writes (flushes and heartbeats) because mirajazz only
+/// serializes individual reports, not whole transfers: a heartbeat from a separate task
+/// could interleave with a multi-packet image flush and corrupt the transfer. The 293V3
+/// firmware resets when it doesn't receive a heartbeat for ~8 seconds, which would cause
+/// a reconnect loop, so the heartbeat must keep running while the device is connected.
 async fn device_flush_task(id: &String, notify: Arc<Notify>, token: CancellationToken) {
+    let mut interval = tokio::time::interval(Duration::from_secs(8));
+
+    // The first tick fires immediately, so consume it to pace the heartbeat from now on.
+    interval.tick().await;
+
     loop {
         tokio::select! {
-            _ = notify.notified() => {}
+            _ = notify.notified() => {
+                // Keep resetting the window while more images arrive; fire when quiet for 50ms.
+                loop {
+                    tokio::select! {
+                        _ = notify.notified() => {}
+                        _ = token.cancelled() => return,
+                        _ = tokio::time::sleep(Duration::from_millis(50)) => break,
+                    }
+                }
+
+                let flush_result = {
+                    let guard = DEVICES.read().await;
+                    if let Some(device) = guard.get(id) {
+                        log::info!("Flushing pending updates");
+                        device.flush().await
+                    } else {
+                        Ok(())
+                    }
+                };
+                if let Err(err) = flush_result {
+                    handle_error(id, err).await;
+                    break;
+                }
+            }
+            _ = interval.tick() => {
+                let heartbeat_result = {
+                    let guard = DEVICES.read().await;
+                    if let Some(device) = guard.get(id) {
+                        log::debug!("Sending keep-alive heartbeat");
+                        device.keep_alive().await
+                    } else {
+                        Ok(())
+                    }
+                };
+                if let Err(err) = heartbeat_result {
+                    handle_error(id, err).await;
+                    break;
+                }
+            }
             _ = token.cancelled() => break,
-        }
-
-        // Keep resetting the window while more images arrive; fire when quiet for 16ms.
-        loop {
-            tokio::select! {
-                _ = notify.notified() => {}
-                _ = token.cancelled() => return,
-                _ = tokio::time::sleep(Duration::from_millis(50)) => break,
-            }
-        }
-
-        let flush_result = {
-            let guard = DEVICES.read().await;
-            if let Some(device) = guard.get(id) {
-                log::info!("Flushing pending updates");
-                device.flush().await
-            } else {
-                Ok(())
-            }
-        };
-        if let Err(err) = flush_result {
-            handle_error(id, err).await;
-            break;
         }
     }
 }
@@ -270,6 +295,11 @@ pub async fn handle_set_image(
             }
         }
         (None, None) => {
+            // Unlike set_button_image, clear_all_button_images writes CLE+STP to the device
+            // immediately (mirajazz 0.16.2), so routing it through the flush task would not
+            // serialize anything. A CONNECT heartbeat can still land between the two
+            // single-packet commands, but complete packets don't corrupt transfers the way
+            // one interleaved mid-image would, so we accept that race.
             device.clear_all_button_images().await?;
             device.flush().await?;
         }

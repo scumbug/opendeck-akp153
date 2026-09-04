@@ -4,7 +4,7 @@ id := "4296d983-7e3c-4b6e-a76c-dc722e81a362.sdPlugin"
 
 release next=`git cliff --bumped-version | tr -d "v"`: (bump next) package (tag next)
 
-package: build-linux collect zip
+package: build-linux build-win collect zip
 
 bump next=`git cliff --bumped-version | tr -d "v"`:
     git diff --cached --exit-code

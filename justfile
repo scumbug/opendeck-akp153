@@ -29,6 +29,9 @@ tag next=`git cliff --bumped-version | tr -d "v"`:
 build-linux:
     cargo build --release --target x86_64-unknown-linux-gnu --target-dir target/plugin-linux
 
+build-win:
+    cargo build --release --target x86_64-pc-windows-gnu --target-dir target/plugin-win
+
 clean:
     sudo rm -rf target/
 
@@ -38,6 +41,7 @@ collect:
     cp -r assets build/{{id}}
     cp manifest.json build/{{id}}
     cp target/plugin-linux/x86_64-unknown-linux-gnu/release/opendeck-akp153 build/{{id}}/opendeck-akp153-linux
+    cp target/plugin-win/x86_64-pc-windows-gnu/release/opendeck-akp153.exe build/{{id}}/opendeck-akp153-win.exe
 
 [working-directory: "build"]
 zip:

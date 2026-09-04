@@ -1,0 +1,31 @@
+name: Build OpenDeck MiraBox Plugin
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install just
+        uses: extractions/setup-just@v3
+
+      - name: Add Rust target
+        run: rustup target add x86_64-unknown-linux-gnu
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build and package
+        run: just package
+
+      - name: Upload plugin
+        uses: actions/upload-artifact@v4
+        with:
+          name: opendeck-mirabox
+          path: build/opendeck-mirabox-293v3.plugin.zip
+          if-no-files-found: error

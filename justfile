@@ -30,7 +30,7 @@ build-linux:
     cargo build --release --target x86_64-unknown-linux-gnu --target-dir target/plugin-linux
 
 build-win:
-    cargo build --release --target x86_64-pc-windows-gnu --target-dir target/plugin-win
+    cargo build --release --target x86_64-pc-windows-msvc --target-dir target/plugin-win
 
 clean:
     sudo rm -rf target/
